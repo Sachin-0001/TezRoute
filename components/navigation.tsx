@@ -3,83 +3,148 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Menu, Train } from "lucide-react"
+import { Menu, Train, Activity, Settings, LogOut, User, Shield, Wifi } from "lucide-react"
 import Link from "next/link"
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@radix-ui/react-dropdown-menu"
-import { User } from "lucide-react"
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
+import { Badge } from "@/components/ui/badge"
 
 export function Navigation() {
   const [isOpen, setIsOpen] = useState(false)
 
   const menuItems = [
-    { href: "/decision-panel", label: "Decision Panel" },
-    { href: "/alerts", label: "Alerts" },
-    { href: "/simulation", label: "Simulation Mode" },
-    { href: "/reports", label: "KPIs/Reports" },
+    { href: "/decision-panel", label: "Decision Panel", icon: Settings, description: "Critical decisions & controls" },
+    { href: "/alerts", label: "System Alerts", icon: Shield, description: "Notifications & incidents" },
+    { href: "/simulation", label: "Simulation Mode", icon: Train, description: "Test scenarios safely" },
+    { href: "/reports", label: "Analytics & Reports", icon: Activity, description: "Performance metrics & KPIs" },
+    {href: "/createUser", label: "Create User", icon: User, description: "Create a new user" },
   ]
 
   return (
-  <nav className="h-16 bg-gradient-to-r from-blue-900 via-blue-800 to-blue-700 text-white flex items-center justify-between px-6 rounded-b-2xl border-b border-blue-800/40 backdrop-blur-md">
+    <nav className="h-20 bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 text-white flex items-center justify-between px-8 shadow-2xl border-b-2 border-blue-500/30 backdrop-blur-md relative overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-transparent to-blue-600/10 animate-pulse"></div>
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-400 to-transparent"></div>
+      
       {/* Left side - Burger menu and logo */}
-  <div className="flex items-center gap-6">
+      <div className="flex items-center gap-8 relative z-10">
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="text-white hover:bg-blue-800">
-              <Menu className="h-6 w-6" />
+            <Button variant="ghost" size="icon" className="text-white hover:bg-blue-800/50 hover:scale-105 transition-all duration-200">
+              <Menu className="h-7 w-7" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-72 bg-gradient-to-b from-blue-900 via-blue-800 to-blue-700 text-white border-blue-800 rounded-r-2xl">
-            <div className="flex flex-col gap-4 mt-10">
-              <Link href = "/"><div className="flex items-center gap-2 mb-8">
-                <Train className="h-7 w-7 text-green-400 drop-shadow-lg" />
-                <span className="font-bold text-xl tracking-wide">TezRoute</span>
-              </div></Link>
-              {menuItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="block px-5 py-3 rounded-lg hover:bg-blue-800/80 hover:text-green-300 transition-colors font-medium text-base"
-                  onClick={() => setIsOpen(false)}
-                >
-                  {item.label}
-                </Link>
-              ))}
+          <SheetContent side="left" className="w-80 bg-gradient-to-b from-slate-900 via-blue-900 to-slate-900 text-white border-blue-500/30 backdrop-blur-xl">
+            <div className="flex flex-col gap-6 mt-12">
+              <Link href="/" onClick={() => setIsOpen(false)}>
+                <div className="flex items-center gap-3 mb-12 p-4 bg-gradient-to-r from-blue-800/30 to-blue-600/30 rounded-2xl border border-blue-500/30">
+                  <div className="p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg">
+                    <Train className="h-8 w-8 text-white drop-shadow-lg" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-2xl tracking-wide bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
+                      TezRoute
+                    </span>
+                    <p className="text-xs text-blue-200">Railway Control System</p>
+                  </div>
+                </div>
+              </Link>
+              
+              <div className="space-y-2">
+                {menuItems.map((item) => {
+                  const Icon = item.icon
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="block group"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <div className="flex items-center gap-4 px-5 py-4 rounded-xl hover:bg-blue-800/50 hover:border-blue-500/50 border border-transparent transition-all duration-200 group-hover:shadow-lg group-hover:shadow-blue-500/20">
+                        <div className="p-2 bg-blue-800/30 rounded-lg group-hover:bg-blue-700/50 transition-colors">
+                          <Icon className="h-5 w-5 text-blue-300 group-hover:text-white transition-colors" />
+                        </div>
+                        <div>
+                          <div className="font-semibold text-base group-hover:text-blue-200 transition-colors">
+                            {item.label}
+                          </div>
+                          <div className="text-xs text-blue-300 group-hover:text-blue-100 transition-colors">
+                            {item.description}
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
             </div>
           </SheetContent>
         </Sheet>
 
-        <Link href = "/"><div className="flex items-center gap-2">
-          <Train className="h-9 w-9 text-green-400" />
-          <h1 className="text-2xl font-extrabold tracking-wide">TezRoute</h1>
-        </div></Link>
+        <Link href="/">
+          <div className="flex items-center gap-3 group cursor-pointer">
+            <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg group-hover:shadow-xl group-hover:scale-105 transition-all duration-200">
+              <Train className="h-8 w-8 text-white drop-shadow-lg" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-white via-blue-100 to-blue-300 bg-clip-text text-transparent">
+                TezRoute
+              </h1>
+              <p className="text-xs text-blue-200 font-medium tracking-wide">RAILWAY CONTROL CENTER</p>
+            </div>
+          </div>
+        </Link>
       </div>
 
-      {/* Right side - Status indicator */}
-      <div className="flex items-center gap-4">
-        <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-        <span className="text-sm">System Online</span>
+      {/* Center - System Status */}
+      <div className="flex items-center gap-6 relative z-10">
+        <div className="flex items-center gap-3 px-4 py-2 bg-green-500/20 rounded-full border border-green-500/30">
+          <Wifi className="h-4 w-4 text-green-400" />
+          <span className="text-sm font-medium text-green-200">System Online</span>
+        </div>
+      </div>
+
+      {/* Right side - User menu */}
+      <div className="flex items-center gap-4 relative z-10">
+        <Badge variant="secondary" className="bg-blue-500/20 text-blue-200 border-blue-500/30 px-3 py-1">
+          Controller Mode
+        </Badge>
+        
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="relative flex items-center justify-center w-10 h-10 rounded-full bg-blue-800 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-green-400 transition-all group"
+              className="relative flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-900 transition-all duration-200 group shadow-lg hover:shadow-xl"
               aria-label="Open profile menu"
             >
-              <User className="w-6 h-6 text-white group-hover:text-green-400 transition-colors" />
-              <span className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 border-2 border-blue-900 rounded-full"></span>
+              <User className="w-6 h-6 text-white group-hover:scale-110 transition-transform" />
+              <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 border-2 border-slate-900 rounded-full animate-pulse shadow-lg"></span>
             </button>
           </DropdownMenuTrigger>
-            <DropdownMenuContent className="bg-white text-black rounded-xl p-2 min-w-[180px] border border-blue-100 mt-2 animate-fade-in z-[100]">
-            <div className="px-3 py-2 border-b border-gray-200 mb-2 flex items-center gap-2">
-              <User className="w-5 h-5 text-blue-900" />
-              <span className="font-semibold text-blue-900">Profile</span>
+          <DropdownMenuContent className="bg-slate-800 text-white rounded-xl p-3 min-w-[200px] border border-blue-500/30 mt-2 shadow-2xl backdrop-blur-xl">
+            <div className="px-3 py-3 border-b border-blue-500/30 mb-3 flex items-center gap-3">
+              <div className="p-2 bg-blue-600/30 rounded-lg">
+                <User className="w-5 h-5 text-blue-300" />
+              </div>
+              <div>
+                <div className="font-semibold text-white">Railway Controller</div>
+                <div className="text-xs text-blue-300">Senior Traffic Manager</div>
+              </div>
             </div>
-            <DropdownMenuItem className="hover:bg-blue-50 px-3 py-2 rounded-lg font-medium cursor-pointer transition-colors">My Account</DropdownMenuItem>
-            <DropdownMenuItem className="hover:bg-blue-50 px-3 py-2 rounded-lg font-medium cursor-pointer transition-colors">Settings</DropdownMenuItem>
-            <DropdownMenuItem className="hover:bg-blue-50 px-3 py-2 rounded-lg font-medium cursor-pointer transition-colors text-red-600">Logout</DropdownMenuItem>
+            <DropdownMenuItem className="hover:bg-blue-500/20 px-3 py-2 rounded-lg font-medium cursor-pointer transition-colors flex items-center gap-3">
+              <User className="w-4 h-4" />
+              My Profile
+            </DropdownMenuItem>
+            <DropdownMenuItem className="hover:bg-blue-500/20 px-3 py-2 rounded-lg font-medium cursor-pointer transition-colors flex items-center gap-3">
+              <Settings className="w-4 h-4" />
+              System Settings
+            </DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-blue-500/30" />
+            <Link href="/createUser"><DropdownMenuItem className="hover:bg-red-500/20 px-3 py-2 rounded-lg font-medium cursor-pointer transition-colors flex items-center gap-3 text-red-400">
+              <LogOut className="w-4 h-4" />
+              Logout
+            </DropdownMenuItem></Link>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      
     </nav>
   )
 }
