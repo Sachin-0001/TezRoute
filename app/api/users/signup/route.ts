@@ -1,9 +1,7 @@
 import { connect } from "@/dbConfig/dbConfig";
 import User from "@/models/userModel";
-import { error } from "console";
 import { NextRequest, NextResponse } from "next/server";
 import bcryptjs from "bcryptjs";
-import { sendEmail } from "@/utils/mailer";
 
 connect();
 
@@ -18,7 +16,7 @@ export async function POST(request: NextRequest) {
 
     if (user) {
       return NextResponse.json(
-        { error: "User alreasy exists" },
+        { error: "User already exists" },
         { status: 400 }
       );
     }
@@ -35,16 +33,12 @@ export async function POST(request: NextRequest) {
       governmentId,
     });
 
-    const savedUser = await newUser.save();
-    console.log(savedUser);
+    await newUser.save();
 
-    await sendEmail({ email, emailType: "VERIFY", userId: savedUser._id });
-
-    return NextResponse.json({
-      message: "User registered successfully",
-      success: true,
-      savedUser,
-    });
+    return NextResponse.json(
+      { message: "User created successfully", user: newUser },
+      { status: 201 }
+    );
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
