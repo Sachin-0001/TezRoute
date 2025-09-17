@@ -157,8 +157,9 @@ export default function HomePage() {
   );
 
   return (
+    <>
+    <Navigation />
     <div className="mx-auto max-w-7xl space-y-6">
-      <Navigation />
       <div className="p-4">
         <header className="flex items-center justify-between">
           <h1 className="text-xl sm:text-2xl font-semibold">
@@ -290,7 +291,8 @@ export default function HomePage() {
           </Card>
         )}
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -524,7 +526,7 @@ function Schematic({
             </text>
           );
         })}
-    </svg>
+      </svg>
   );
 }
 

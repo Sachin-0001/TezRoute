@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { IoMdSend } from "react-icons/io";
 
@@ -9,6 +9,15 @@ const ChatArea = () => {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, loading]);
 
   const handleSendMessage = async () => {
     if (input.trim()) {
@@ -34,8 +43,8 @@ const ChatArea = () => {
     <div className="bg-gray-100 shadow-lg rounded-lg flex flex-col w-full max-w-md h-[650px]">
       {/* Chat Header */}
       <div className="bg-blue-600 text-white py-3 px-4 rounded-t-lg flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Bot</h2>
-        <span className="text-sm opacity-75">Online</span>
+        <h2 className="text-lg font-semibold">RailAI Bot</h2>
+        <span className="text-sm opacity-75">{loading ? "Typing..." : "Online"}</span>
       </div>
       {/* Chat Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -64,6 +73,7 @@ const ChatArea = () => {
             </div>
           </div>
         )}
+        <div ref={messagesEndRef} />
       </div>
       {/* Chat Input */}
       <div className="border-t border-gray-300 p-3 flex items-center">
@@ -80,11 +90,13 @@ const ChatArea = () => {
             }
           }}
         />
-        <IoMdSend
-          className="bg-blue-600 text-white size-10 cursor-pointer hover:bg-blue-700 transition"
+        <button
           onClick={handleSendMessage}
-        //   disabled={loading}
-        />
+          disabled={loading}
+          className="bg-blue-600 text-white p-2 rounded-r-lg hover:bg-blue-700 transition disabled:opacity-50"
+        >
+          <IoMdSend size={24} />
+        </button>
       </div>
     </div>
   );
