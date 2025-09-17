@@ -1,0 +1,13 @@
+train_id,dir,priority,class,orig,dest,sch_arr,sch_dep,max_speed_kmph,length_m,dwell_s,platform_pref
+50001,UP,3,express,OUT,EDGE,,08:00,110,220,90,P1
+50002,DN,3,express,OUT,EDGE,,08:01,110,220,90,P2
+50003,UP,2,local,OUT,EDGE,,08:02,90,180,60,P3
+50004,DN,2,local,OUT,EDGE,,08:03,90,180,60,P4
+50005,UP,1,freight,OUT,EDGE,,08:04,70,600,120,P1
+50006,DN,1,freight,OUT,EDGE,,08:05,70,600,120,P2
+50007,UP,3,express,OUT,EDGE,,08:06,110,220,90,P3
+50008,DN,3,express,OUT,EDGE,,08:07,110,220,90,P4
+50009,UP,2,local,OUT,EDGE,,08:08,90,180,60,P2
+50010,DN,2,local,OUT,EDGE,,08:09,90,180,60,P1
+50011,UP,1,freight,OUT,EDGE,,08:10,70,600,120,P4
+50012,DN,1,freight,OUT,EDGE,,08:11,70,600,120,P3

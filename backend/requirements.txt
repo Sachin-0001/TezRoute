@@ -1,0 +1,8 @@
+langchain>=0.2.12
+langchain-core>=0.2.35
+langchain-community>=0.2.10
+pydantic>=2.7
+uvloop; sys_platform != 'win32'
+tabulate
+fastapi>=0.111
+uvicorn>=0.30

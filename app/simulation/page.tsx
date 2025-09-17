@@ -1,434 +1,531 @@
-"use client"
-
-import { useState } from "react"
-import { Navigation } from "@/components/navigation"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Slider } from "@/components/ui/slider"
-import { Progress } from "@/components/ui/progress"
-import { 
-  Play, 
-  Pause, 
-  RotateCcw, 
-  Settings, 
-  Zap, 
+"use client";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type React from "react";
+import {
   AlertTriangle,
-  Train,
   Clock,
-  Activity,
-  TrendingUp,
-  BarChart3,
-  Map,
-  Layers,
-  Maximize2,
-  Save,
-  Download
-} from "lucide-react"
+  TrainFront,
+  MoveRight,
+  Play,
+  Pause,
+  RefreshCcw,
+} from "lucide-react";
+import clsx from "clsx";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Navigation } from "@/components/navigation";
 
-export default function SimulationPage() {
-  const [isRunning, setIsRunning] = useState(false)
-  const [speed, setSpeed] = useState([1])
-  const [scenario, setScenario] = useState("")
-  const [simulationTime, setSimulationTime] = useState("14:30:00")
-  const [selectedView, setSelectedView] = useState("network")
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
-  const scenarios = [
-    { 
-      id: "rush-hour", 
-      name: "Rush Hour Traffic", 
-      description: "High volume passenger traffic simulation",
-      complexity: "Medium",
-      duration: "2 hours",
-      trains: "45+ trains"
-    },
-    { 
-      id: "weather-delay", 
-      name: "Weather Delays", 
-      description: "Heavy rain causing system-wide delays",
-      complexity: "High",
-      duration: "4 hours",
-      trains: "30+ trains"
-    },
-    {
-      id: "signal-failure",
-      name: "Signal System Failure",
-      description: "Multiple signal failures requiring manual control",
-      complexity: "Critical",
-      duration: "1 hour",
-      trains: "20+ trains"
-    },
-    { 
-      id: "emergency", 
-      name: "Emergency Response", 
-      description: "Emergency evacuation scenario",
-      complexity: "Critical",
-      duration: "30 min",
-      trains: "15+ trains"
-    },
-    { 
-      id: "maintenance", 
-      name: "Planned Maintenance", 
-      description: "Track maintenance with traffic rerouting",
-      complexity: "Low",
-      duration: "3 hours",
-      trains: "25+ trains"
-    },
-  ]
+type KPI = {
+  ts: number;
+  waiting: number;
+  on_platform: number;
+  completed: number;
+};
+type Train = {
+  id: string;
+  dir: "UP" | "DN";
+  block?: string | null;
+  at_platform?: string | null;
+  eta_to_junc_s?: number | null;
+  hold_until?: number;
+  done: boolean;
+  priority: number;
+};
 
-  const simulationMetrics = [
-    { label: "Trains Active", value: "12", change: "+2", trend: "up", icon: Train, color: "text-blue-600" },
-    { label: "On-Time Performance", value: "87%", change: "-5%", trend: "down", icon: Clock, color: "text-yellow-600" },
-    { label: "Average Delay", value: "3.2 min", change: "+1.1 min", trend: "down", icon: AlertTriangle, color: "text-red-600" },
-    { label: "Conflicts Resolved", value: "4", change: "+4", trend: "up", icon: Zap, color: "text-green-600" },
-    { label: "System Efficiency", value: "94%", change: "+2%", trend: "up", icon: TrendingUp, color: "text-purple-600" },
-    { label: "Network Utilization", value: "78%", change: "+3%", trend: "up", icon: Activity, color: "text-indigo-600" },
-  ]
+async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { "Content-Type": "application/json" },
+    ...init,
+  });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json();
+}
 
-  const events = [
-    { time: "14:32:15", type: "delay", message: "T005 delayed by 3 minutes due to passenger boarding", severity: "medium" },
-    { time: "14:31:45", type: "conflict", message: "Track conflict detected between T003 and T008", severity: "high" },
-    { time: "14:30:30", type: "resolution", message: "T002 rerouted successfully via alternate track", severity: "low" },
-    { time: "14:29:12", type: "alert", message: "Weather alert: Rain intensity increasing", severity: "medium" },
-    { time: "14:28:05", type: "optimization", message: "AI suggested route optimization for 3 trains", severity: "low" },
-    { time: "14:27:33", type: "maintenance", message: "Platform A2 maintenance completed ahead of schedule", severity: "low" },
-  ]
+function formatTs(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const hh = String(Math.floor(s / 3600)).padStart(2, "0");
+  const mm = String(Math.floor((s % 3600) / 60)).padStart(2, "0");
+  const ss = String(s % 60).padStart(2, "0");
+  return `${hh}:${mm}:${ss}`;
+}
 
-  const networkData = [
-    { section: "North Line", utilization: 85, trains: 8, status: "busy" },
-    { section: "South Line", utilization: 72, trains: 6, status: "normal" },
-    { section: "East Line", utilization: 95, trains: 10, status: "congested" },
-    { section: "West Line", utilization: 68, trains: 5, status: "normal" },
-    { section: "Central Hub", utilization: 98, trains: 15, status: "critical" },
-  ]
+export default function HomePage() {
+  const [kpis, setKpis] = useState<KPI | null>(null);
+  const [trains, setTrains] = useState<Train[]>([]);
+  const [platforms, setPlatforms] = useState<
+    { id: string; occ: string | null; until: number }[]
+  >([]);
+  const [conflicts, setConflicts] = useState<any[]>([]);
+  const [auto, setAuto] = useState(false);
+  const [initialized, setInitialized] = useState(false);
+  const [started, setStarted] = useState(false);
+  const autoRef = useRef(auto);
+  autoRef.current = auto;
 
-  const getEventIcon = (type: string) => {
-    switch (type) {
-      case "conflict":
-        return <AlertTriangle className="h-4 w-4 text-red-500" />
-      case "delay":
-        return <Clock className="h-4 w-4 text-yellow-500" />
-      case "resolution":
-        return <Zap className="h-4 w-4 text-green-500" />
-      case "alert":
-        return <AlertTriangle className="h-4 w-4 text-blue-500" />
-      case "optimization":
-        return <TrendingUp className="h-4 w-4 text-purple-500" />
-      case "maintenance":
-        return <Settings className="h-4 w-4 text-indigo-500" />
-      default:
-        return <Activity className="h-4 w-4 text-gray-500" />
+  async function refreshAll() {
+    const state = await api<{
+      ok: boolean;
+      state?: any;
+      kpis?: KPI;
+      error?: string;
+    }>("/state");
+    if (!state.ok || !state.state) {
+      setInitialized(false);
+      setKpis(null);
+      setTrains([]);
+      setPlatforms([]);
+      setConflicts([]);
+      return;
     }
+    setInitialized(true);
+    setKpis(state.kpis!);
+    setTrains(state.state.trains ?? []);
+    setPlatforms(state.state.platforms ?? []);
+    const conf = await api<{ ok: boolean; conflicts?: any[] }>("/conflicts");
+    setConflicts(conf.conflicts || []);
+    // stop auto if all trains are completed
+    const allDone = (state.state.trains ?? []).every((t: any) => t.done);
+    if (allDone) setAuto(false);
   }
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case "high": return "bg-red-100 text-red-800 border-red-200"
-      case "medium": return "bg-yellow-100 text-yellow-800 border-yellow-200"
-      case "low": return "bg-green-100 text-green-800 border-green-200"
-      default: return "bg-gray-100 text-gray-800 border-gray-200"
-    }
+  async function startSim() {
+    await api("/init", { method: "POST", body: JSON.stringify({}) });
+    setAuto(false);
+    setStarted(true);
+    await refreshAll();
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "critical": return "bg-red-500"
-      case "congested": return "bg-orange-500"
-      case "busy": return "bg-yellow-500"
-      case "normal": return "bg-green-500"
-      default: return "bg-gray-500"
-    }
+  async function resetSim() {
+    await api("/init", { method: "POST", body: JSON.stringify({}) });
+    setAuto(false);
+    setStarted(false);
+    setKpis(null);
+    setTrains([]);
+    setPlatforms([]);
+    setConflicts([]);
   }
 
-  const getComplexityColor = (complexity: string) => {
-    switch (complexity) {
-      case "Critical": return "bg-red-100 text-red-800 border-red-200"
-      case "High": return "bg-orange-100 text-orange-800 border-orange-200"
-      case "Medium": return "bg-yellow-100 text-yellow-800 border-yellow-200"
-      case "Low": return "bg-green-100 text-green-800 border-green-200"
-      default: return "bg-gray-100 text-gray-800 border-gray-200"
+  async function step(seconds: number) {
+    const actions = await api<{ ok: boolean; actions: any[] }>(
+      "/greedy_actions",
+      { method: "POST" }
+    );
+    if (actions.actions?.length) {
+      await api("/actions", {
+        method: "POST",
+        body: JSON.stringify({ actions: actions.actions }),
+      });
     }
+    await api("/step", { method: "POST", body: JSON.stringify({ seconds }) });
+    await refreshAll();
   }
+
+  useEffect(() => {
+    if (!started) return;
+    (async () => {
+      await refreshAll();
+    })();
+  }, [started]);
+
+  useEffect(() => {
+    if (!auto) return;
+    const id = setInterval(() => {
+      if (!autoRef.current) return;
+      step(5);
+    }, 300);
+    return () => clearInterval(id);
+  }, [auto]);
+
+  const remaining = useMemo(
+    () => trains.filter((t) => !t.done).length,
+    [trains]
+  );
+  const allDone = useMemo(
+    () => trains.length > 0 && trains.every((t) => t.done),
+    [trains]
+  );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
+    <div className="mx-auto max-w-7xl space-y-6">
       <Navigation />
-      <main className="p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h1 className="text-4xl font-bold text-slate-800 mb-2">Railway Simulation Center</h1>
-                <p className="text-slate-600">Advanced scenario testing and optimization modeling</p>
-              </div>
-              <div className="flex gap-3">
-                <Button variant="outline" className="border-slate-300 hover:bg-slate-50">
-                  <Save className="h-4 w-4 mr-2" />
-                  Save Scenario
+      <div className="p-4">
+        <header className="flex items-center justify-between">
+          <h1 className="text-xl sm:text-2xl font-semibold">
+            🚦 Railway Station Simulation Dashboard
+          </h1>
+          <div className="flex gap-2">
+            {!started ? (
+              <Button size="sm" onClick={startSim}>
+                <Play className="size-4" />
+                <span>Start Simulation</span>
+              </Button>
+            ) : (
+              <>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => !allDone && step(5)}
+                  disabled={allDone}
+                >
+                  <MoveRight className="size-4" />
+                  <span>Step 5s</span>
                 </Button>
-                <Button variant="outline" className="border-slate-300 hover:bg-slate-50">
-                  <Download className="h-4 w-4 mr-2" />
-                  Export Results
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => !allDone && step(30)}
+                  disabled={allDone}
+                >
+                  <MoveRight className="size-4" />
+                  <span>Step 30s</span>
                 </Button>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* Simulation Controls */}
-            <div className="lg:col-span-1">
-              <Card className="p-6 mb-6 bg-white/90 border-slate-200 shadow-lg">
-                <div className="flex items-center gap-2 mb-6">
-                  <Settings className="h-5 w-5 text-slate-600" />
-                  <h2 className="text-xl font-semibold text-slate-800">Simulation Controls</h2>
-                </div>
-
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-3">Scenario Selection</label>
-                    <Select value={scenario} onValueChange={setScenario}>
-                      <SelectTrigger className="border-slate-300">
-                        <SelectValue placeholder="Choose simulation scenario" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {scenarios.map((s) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            <div className="flex flex-col">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium">{s.name}</span>
-                                <Badge className={`text-xs ${getComplexityColor(s.complexity)}`}>
-                                  {s.complexity}
-                                </Badge>
-                              </div>
-                              <div className="text-sm text-slate-500 mt-1">{s.description}</div>
-                              <div className="flex gap-4 text-xs text-slate-400 mt-1">
-                                <span>⏱️ {s.duration}</span>
-                                <span>🚆 {s.trains}</span>
-                              </div>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-3">
-                      Simulation Speed: {speed[0]}x
-                    </label>
-                    <Slider value={speed} onValueChange={setSpeed} max={10} min={0.5} step={0.5} className="w-full" />
-                    <div className="flex justify-between text-xs text-slate-500 mt-1">
-                      <span>0.5x</span>
-                      <span>5x</span>
-                      <span>10x</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Simulation Time</label>
-                    <div className="font-mono text-xl font-bold text-slate-800 bg-slate-100 p-3 rounded-lg border border-slate-200">
-                      {simulationTime}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button
-                      onClick={() => setIsRunning(!isRunning)}
-                      className={isRunning ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"}
-                      size="sm"
-                    >
-                      {isRunning ? (
-                        <>
-                          <Pause className="h-4 w-4 mr-2" />
-                          Pause
-                        </>
-                      ) : (
-                        <>
-                          <Play className="h-4 w-4 mr-2" />
-                          Start
-                        </>
-                      )}
-                    </Button>
-                    <Button variant="outline" size="sm" className="border-slate-300">
-                      <RotateCcw className="h-4 w-4 mr-2" />
-                      Reset
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Network Status */}
-              <Card className="p-6 bg-white/90 border-slate-200 shadow-lg">
-                <div className="flex items-center gap-2 mb-4">
-                  <Map className="h-5 w-5 text-slate-600" />
-                  <h3 className="text-lg font-semibold text-slate-800">Network Status</h3>
-                </div>
-                <div className="space-y-3">
-                  {networkData.map((section, index) => (
-                    <div key={index} className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-slate-700">{section.section}</span>
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${getStatusColor(section.status)}`}></div>
-                          <span className="text-xs text-slate-600">{section.trains} trains</span>
-                        </div>
-                      </div>
-                      <Progress value={section.utilization} className="h-2" />
-                      <div className="text-xs text-slate-500">{section.utilization}% utilization</div>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            </div>
-
-            {/* Simulation Display & Metrics */}
-            <div className="lg:col-span-2">
-              {/* Performance Metrics Grid */}
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                {simulationMetrics.map((metric, index) => {
-                  const Icon = metric.icon
-                  return (
-                    <Card key={index} className="p-4 bg-white/90 border-slate-200 shadow-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <Icon className={`h-5 w-5 ${metric.color}`} />
-                        <Badge 
-                          variant="outline" 
-                          className={`text-xs ${
-                            metric.trend === "up" && metric.label !== "Average Delay" ? "text-green-600 border-green-300 bg-green-50" : "text-red-600 border-red-300 bg-red-50"
-                          }`}
-                        >
-                          {metric.change}
-                        </Badge>
-                      </div>
-                      <div>
-                        <p className="text-xl font-bold text-slate-800">{metric.value}</p>
-                        <p className="text-xs text-slate-600 font-medium">{metric.label}</p>
-                      </div>
-                    </Card>
-                  )
-                })}
-              </div>
-
-              {/* Simulation Visualization */}
-              <Card className="p-6 mb-6 bg-white/90 border-slate-200 shadow-lg">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-slate-100 rounded-lg">
-                      <BarChart3 className="h-5 w-5 text-slate-600" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-semibold text-slate-800">Simulation Visualization</h2>
-                      <p className="text-sm text-slate-600">Real-time railway network modeling</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Badge className={isRunning ? "bg-green-100 text-green-800 border-green-200" : "bg-slate-100 text-slate-800 border-slate-200"}>
-                      {isRunning ? "Running" : "Paused"}
-                    </Badge>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="border-slate-300">
-                        <Layers className="h-4 w-4 mr-2" />
-                        Layers
-                      </Button>
-                      <Button variant="outline" size="sm" className="border-slate-300">
-                        <Maximize2 className="h-4 w-4 mr-2" />
-                        Fullscreen
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Enhanced Simulation Display */}
-                <div className="h-80 bg-gradient-to-br from-slate-100 via-blue-50 to-slate-200 rounded-xl border border-slate-300 relative overflow-hidden">
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    {scenario ? (
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-slate-800 mb-3">
-                          {scenarios.find((s) => s.id === scenario)?.name}
-                        </div>
-                        <div className="text-slate-600 mb-6 max-w-md">
-                          {scenarios.find((s) => s.id === scenario)?.description}
-                        </div>
-                        {isRunning ? (
-                          <div className="flex flex-col items-center gap-3">
-                            <div className="flex items-center gap-2">
-                              <div className="w-4 h-4 bg-green-500 rounded-full animate-pulse"></div>
-                              <span className="text-green-700 font-semibold">Simulation Active</span>
-                            </div>
-                            <div className="text-sm text-slate-600">
-                              Processing {scenarios.find((s) => s.id === scenario)?.trains} in real-time
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-slate-500">Click Start to begin simulation</div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="text-center text-slate-500">
-                        <div className="p-4 bg-slate-200 rounded-full w-20 h-20 mx-auto mb-4 flex items-center justify-center">
-                          <Settings className="h-10 w-10 text-slate-400" />
-                        </div>
-                        <div className="text-lg font-medium">Select a scenario to begin</div>
-                        <div className="text-sm mt-1">Choose from the available simulation scenarios</div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Animated railway elements when running */}
-                  {isRunning && scenario && (
-                    <>
-                      <div className="absolute top-6 left-6 w-6 h-6 bg-green-500 rounded-full animate-bounce shadow-lg"></div>
-                      <div className="absolute top-12 right-12 w-4 h-4 bg-yellow-500 rounded-full animate-pulse shadow-lg"></div>
-                      <div className="absolute bottom-8 left-1/3 w-5 h-5 bg-blue-500 rounded-full animate-ping shadow-lg"></div>
-                      <div className="absolute bottom-16 right-1/4 w-3 h-3 bg-purple-500 rounded-full animate-bounce shadow-lg"></div>
-                      <div className="absolute top-1/2 left-8 w-4 h-4 bg-red-500 rounded-full animate-pulse shadow-lg"></div>
-                    </>
+                <Button
+                  size="sm"
+                  variant={auto ? "default" : "secondary"}
+                  onClick={() => !allDone && setAuto((v) => !v)}
+                  disabled={allDone}
+                >
+                  {auto ? (
+                    <Pause className="size-4" />
+                  ) : (
+                    <Play className="size-4" />
                   )}
-
-                  {/* Network overlay */}
-                  <div className="absolute inset-0 opacity-20">
-                    <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                      <line x1="20" y1="50" x2="80" y2="50" stroke="#64748B" strokeWidth="0.5" strokeDasharray="2,2" />
-                      <line x1="50" y1="20" x2="50" y2="80" stroke="#64748B" strokeWidth="0.5" strokeDasharray="2,2" />
-                      <circle cx="50" cy="50" r="3" fill="#64748B" />
-                    </svg>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Event Log */}
-              <Card className="p-6 bg-white/90 border-slate-200 shadow-lg">
-                <div className="flex items-center gap-2 mb-4">
-                  <Activity className="h-5 w-5 text-slate-600" />
-                  <h3 className="text-lg font-semibold text-slate-800">Simulation Events</h3>
-                </div>
-                <div className="space-y-3 max-h-64 overflow-y-auto">
-                  {events.map((event, index) => (
-                    <div key={index} className="flex items-start gap-3 p-4 bg-slate-50 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors">
-                      {getEventIcon(event.type)}
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="font-mono text-sm text-slate-600">{event.time}</span>
-                          <div className="flex gap-2">
-                            <Badge className={`text-xs ${getSeverityColor(event.severity)}`}>
-                              {event.severity}
-                            </Badge>
-                            <Badge variant="outline" className="text-xs">
-                              {event.type}
-                            </Badge>
-                          </div>
-                        </div>
-                        <p className="text-sm text-slate-800">{event.message}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            </div>
+                  <span>{auto ? "Pause" : "Auto"}</span>
+                </Button>
+                <Button size="sm" variant="outline" onClick={resetSim}>
+                  <RefreshCcw className="size-4" />
+                  <span>Reset</span>
+                </Button>
+              </>
+            )}
           </div>
-        </div>
-      </main>
+        </header>
+
+        {started && (
+          <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <KpiCard
+              icon={<Clock className="size-4" />}
+              label="Simulation Time"
+              value={formatTs(kpis?.ts ?? 0)}
+            />
+            <KpiCard
+              icon={<TrainFront className="size-4" />}
+              label="Trains Remaining"
+              value={String(remaining)}
+            />
+            <KpiCard
+              icon={<TrainFront className="size-4" />}
+              label="Platforms"
+              value={String(platforms.length)}
+            />
+          </section>
+        )}
+
+        {started && !!conflicts.length && (
+          <Card className="border-amber-500/30">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-amber-400">
+                <AlertTriangle className="size-5" />
+                <p className="font-medium">
+                  Conflict predicted: {conflicts[0].pair?.[0]} vs{" "}
+                  {conflicts[0].pair?.[1]} (ETA{" "}
+                  {conflicts[0].eta_s?.join(" / ")})
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {started && allDone && (
+          <Card className="border-emerald-500/30">
+            <CardContent className="p-3">
+              <p className="text-emerald-400 text-sm">
+                All trains have completed their journey.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {started ? (
+          <section className="flex flex-col gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Station Schematic</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3">
+                <Schematic
+                  trains={trains}
+                  platforms={platforms}
+                  now={kpis?.ts ?? 0}
+                />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Train Status</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3">
+                <TrainTable trains={trains} now={kpis?.ts ?? 0} />
+              </CardContent>
+            </Card>
+          </section>
+        ) : (
+          <Card className="flex items-center justify-center">
+            <CardContent className="p-6 text-muted-foreground">
+              <p>
+                Click "Start Simulation" to initialize and view the dashboard.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
-  )
+  );
 }
+
+function KpiCard({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-center gap-2 text-muted-foreground text-xs">
+          {icon}
+          <span>{label}</span>
+        </div>
+        <div className="mt-2 text-2xl font-semibold">{value}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TrainTable({ trains, now }: { trains: Train[]; now: number }) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Train</TableHead>
+          <TableHead>Direction</TableHead>
+          <TableHead>Priority</TableHead>
+          <TableHead>ETA (s)</TableHead>
+          <TableHead>Platform</TableHead>
+          <TableHead>Held</TableHead>
+          <TableHead>Status</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {trains.map((t) => (
+          <TableRow key={t.id}>
+            <TableCell>🚆 {t.id}</TableCell>
+            <TableCell>{t.dir === "UP" ? "⬆️ UP" : "⬇️ DN"}</TableCell>
+            <TableCell>{t.priority}</TableCell>
+            <TableCell>{t.eta_to_junc_s ?? "-"}</TableCell>
+            <TableCell>{t.at_platform ?? "-"}</TableCell>
+            <TableCell>
+              {(t.hold_until ?? 0) > now ? `⏸️ ${t.hold_until}` : ""}
+            </TableCell>
+            <TableCell>
+              {t.done
+                ? "✅ Done"
+                : (t.hold_until ?? 0) <= now
+                ? "🟢 Moving"
+                : "🔴 Held"}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+      <TableCaption className="sr-only">Train status table</TableCaption>
+    </Table>
+  );
+}
+
+function Schematic({
+  trains,
+  platforms,
+  now,
+}: {
+  trains: Train[];
+  platforms: { id: string; occ: string | null; until: number }[];
+  now: number;
+}) {
+  const nTracks = 2;
+  const nPlats = platforms.length || 2;
+  const trackY = (i: number) => 20 + (i * 60) / (nTracks - 1);
+  const platY = (j: number) => 20 + (j * 60) / Math.max(1, nPlats - 1);
+
+  return (
+    <svg viewBox="0 0 560 120" className="w-full h-[240px]">
+      {[...Array(nTracks)].map((_, i) => (
+        <g key={i}>
+          <line
+            x1={0}
+            y1={trackY(i)}
+            x2={150}
+            y2={trackY(i)}
+            stroke="#64748b"
+            strokeWidth={6}
+          />
+          <text
+            x={-4}
+            y={trackY(i)}
+            fill="#94a3b8"
+            fontSize={10}
+            textAnchor="end"
+            dominantBaseline="middle"
+          >{`IN ${i + 1}`}</text>
+        </g>
+      ))}
+      {[...Array(nTracks)].map((_, i) =>
+        [...Array(nPlats)].map((__, j) => (
+          <line
+            key={`in-${i}-${j}`}
+            x1={150}
+            y1={trackY(i)}
+            x2={200}
+            y2={platY(j)}
+            stroke="#d1a36b"
+            strokeWidth={2}
+            opacity={0.5}
+          />
+        ))
+      )}
+      {platforms.map((p, j) => (
+        <g key={p.id}>
+          <line
+            x1={200}
+            y1={platY(j)}
+            x2={320}
+            y2={platY(j)}
+            stroke="#8b5e34"
+            strokeWidth={16}
+            strokeLinecap="round"
+          />
+          <text
+            x={260}
+            y={platY(j) - 10}
+            fill="#d1a36b"
+            fontWeight={600}
+            fontSize={12}
+            textAnchor="middle"
+          >{`Platform ${p.id}`}</text>
+        </g>
+      ))}
+      {[...Array(nTracks)].map((_, i) =>
+        [...Array(nPlats)].map((__, j) => (
+          <line
+            key={`out-${i}-${j}`}
+            x1={320}
+            y1={platY(j)}
+            x2={360}
+            y2={trackY(i)}
+            stroke="#d1a36b"
+            strokeWidth={2}
+            opacity={0.5}
+          />
+        ))
+      )}
+      {[...Array(nTracks)].map((_, i) => (
+        <g key={`out-${i}`}>
+          <line
+            x1={360}
+            y1={trackY(i)}
+            x2={560}
+            y2={trackY(i)}
+            stroke="#64748b"
+            strokeWidth={6}
+          />
+          <text
+            x={564}
+            y={trackY(i)}
+            fill="#94a3b8"
+            fontSize={10}
+            textAnchor="start"
+            dominantBaseline="middle"
+          >{`OUT ${i + 1}`}</text>
+        </g>
+      ))}
+      {trains
+        .filter((t) => !t.done && !t.at_platform)
+        .map((t, idx) => {
+          const y = trackY(idx % nTracks);
+          const held = (t.hold_until ?? 0) > now;
+          const eta =
+            typeof t.eta_to_junc_s === "number" ? t.eta_to_junc_s! : 180;
+          const clamped = Math.max(0, Math.min(eta, 300)); // 0..300s window
+          const norm = clamped / 300; // 1 = far, 0 = at station
+          // Map ETA to horizontal position along approach (10..140): decreasing ETA moves right
+          let x = 10 + (1 - norm) * 130;
+          // stable jitter by train id to avoid back-and-forth from reordering
+          const hash = Array.from(t.id).reduce(
+            (a, c) => a + c.charCodeAt(0),
+            0
+          );
+          const jitter = ((hash % 3) - 1) * 4; // -4, 0, +4
+          x = Math.max(10, Math.min(140, x + jitter));
+          return (
+            <g key={`ap-${t.id}`}>
+              {held && (
+                <circle cx={x} cy={y} r={12} fill="#7f1d1d" opacity={0.35} />
+              )}
+              <text
+                x={x}
+                y={y}
+                fontSize={18}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fill={held ? "#ef4444" : "#22c55e"}
+              >
+                🚆
+              </text>
+              {held && (
+                <text x={x + 12} y={y - 10} fontSize={10} fill="#fca5a5">
+                  ⏸
+                </text>
+              )}
+            </g>
+          );
+        })}
+      {trains
+        .filter((t) => t.at_platform && !t.done)
+        .map((t) => {
+          const j = Math.max(
+            0,
+            platforms.findIndex((p) => p.id === t.at_platform)
+          );
+          const y = platY(j);
+          return (
+            <text
+              key={`plat-${t.id}`}
+              x={260}
+              y={y}
+              fontSize={18}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fill="#4169e1"
+            >
+              🚆
+            </text>
+          );
+        })}
+    </svg>
+  );
+}
+
+// Removed custom btn/primary helpers in favor of shared UI components
