@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Navigation } from "@/components/navigation";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
@@ -156,135 +157,139 @@ export default function HomePage() {
   );
 
   return (
-    <div className="mx-auto max-w-7xl p-4 space-y-6">
-      <header className="flex items-center justify-between">
-        <h1 className="text-xl sm:text-2xl font-semibold">
-          🚦 Railway Station Simulation Dashboard
-        </h1>
-        <div className="flex gap-2">
-          {!started ? (
-            <Button size="sm" onClick={startSim}>
-              <Play className="size-4" />
-              <span>Start Simulation</span>
-            </Button>
-          ) : (
-            <>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => !allDone && step(5)}
-                disabled={allDone}
-              >
-                <MoveRight className="size-4" />
-                <span>Step 5s</span>
+    <div className="mx-auto max-w-7xl space-y-6">
+      <Navigation />
+      <div className="p-4">
+        <header className="flex items-center justify-between">
+          <h1 className="text-xl sm:text-2xl font-semibold">
+            🚦 Railway Station Simulation Dashboard
+          </h1>
+          <div className="flex gap-2">
+            {!started ? (
+              <Button size="sm" onClick={startSim}>
+                <Play className="size-4" />
+                <span>Start Simulation</span>
               </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => !allDone && step(30)}
-                disabled={allDone}
-              >
-                <MoveRight className="size-4" />
-                <span>Step 30s</span>
-              </Button>
-              <Button
-                size="sm"
-                variant={auto ? "default" : "secondary"}
-                onClick={() => !allDone && setAuto((v) => !v)}
-                disabled={allDone}
-              >
-                {auto ? (
-                  <Pause className="size-4" />
-                ) : (
-                  <Play className="size-4" />
-                )}
-                <span>{auto ? "Pause" : "Auto"}</span>
-              </Button>
-              <Button size="sm" variant="outline" onClick={resetSim}>
-                <RefreshCcw className="size-4" />
-                <span>Reset</span>
-              </Button>
-            </>
-          )}
-        </div>
-      </header>
+            ) : (
+              <>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => !allDone && step(5)}
+                  disabled={allDone}
+                >
+                  <MoveRight className="size-4" />
+                  <span>Step 5s</span>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => !allDone && step(30)}
+                  disabled={allDone}
+                >
+                  <MoveRight className="size-4" />
+                  <span>Step 30s</span>
+                </Button>
+                <Button
+                  size="sm"
+                  variant={auto ? "default" : "secondary"}
+                  onClick={() => !allDone && setAuto((v) => !v)}
+                  disabled={allDone}
+                >
+                  {auto ? (
+                    <Pause className="size-4" />
+                  ) : (
+                    <Play className="size-4" />
+                  )}
+                  <span>{auto ? "Pause" : "Auto"}</span>
+                </Button>
+                <Button size="sm" variant="outline" onClick={resetSim}>
+                  <RefreshCcw className="size-4" />
+                  <span>Reset</span>
+                </Button>
+              </>
+            )}
+          </div>
+        </header>
 
-      {started && (
-        <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <KpiCard
-            icon={<Clock className="size-4" />}
-            label="Simulation Time"
-            value={formatTs(kpis?.ts ?? 0)}
-          />
-          <KpiCard
-            icon={<TrainFront className="size-4" />}
-            label="Trains Remaining"
-            value={String(remaining)}
-          />
-          <KpiCard
-            icon={<TrainFront className="size-4" />}
-            label="Platforms"
-            value={String(platforms.length)}
-          />
-        </section>
-      )}
+        {started && (
+          <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <KpiCard
+              icon={<Clock className="size-4" />}
+              label="Simulation Time"
+              value={formatTs(kpis?.ts ?? 0)}
+            />
+            <KpiCard
+              icon={<TrainFront className="size-4" />}
+              label="Trains Remaining"
+              value={String(remaining)}
+            />
+            <KpiCard
+              icon={<TrainFront className="size-4" />}
+              label="Platforms"
+              value={String(platforms.length)}
+            />
+          </section>
+        )}
 
-      {started && !!conflicts.length && (
-        <Card className="border-amber-500/30">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-amber-400">
-              <AlertTriangle className="size-5" />
-              <p className="font-medium">
-                Conflict predicted: {conflicts[0].pair?.[0]} vs{" "}
-                {conflicts[0].pair?.[1]} (ETA {conflicts[0].eta_s?.join(" / ")})
+        {started && !!conflicts.length && (
+          <Card className="border-amber-500/30">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-amber-400">
+                <AlertTriangle className="size-5" />
+                <p className="font-medium">
+                  Conflict predicted: {conflicts[0].pair?.[0]} vs{" "}
+                  {conflicts[0].pair?.[1]} (ETA{" "}
+                  {conflicts[0].eta_s?.join(" / ")})
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {started && allDone && (
+          <Card className="border-emerald-500/30">
+            <CardContent className="p-3">
+              <p className="text-emerald-400 text-sm">
+                All trains have completed their journey.
               </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {started && allDone && (
-        <Card className="border-emerald-500/30">
-          <CardContent className="p-3">
-            <p className="text-emerald-400 text-sm">
-              All trains have completed their journey.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {started ? (
-        <section className="flex flex-col gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Station Schematic</CardTitle>
-            </CardHeader>
-            <CardContent className="p-3">
-              <Schematic
-                trains={trains}
-                platforms={platforms}
-                now={kpis?.ts ?? 0}
-              />
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Train Status</CardTitle>
-            </CardHeader>
-            <CardContent className="p-3">
-              <TrainTable trains={trains} now={kpis?.ts ?? 0} />
+        )}
+
+        {started ? (
+          <section className="flex flex-col gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Station Schematic</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3">
+                <Schematic
+                  trains={trains}
+                  platforms={platforms}
+                  now={kpis?.ts ?? 0}
+                />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Train Status</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3">
+                <TrainTable trains={trains} now={kpis?.ts ?? 0} />
+              </CardContent>
+            </Card>
+          </section>
+        ) : (
+          <Card className="flex items-center justify-center">
+            <CardContent className="p-6 text-muted-foreground">
+              <p>
+                Click "Start Simulation" to initialize and view the dashboard.
+              </p>
             </CardContent>
           </Card>
-        </section>
-      ) : (
-        <Card className="flex items-center justify-center">
-          <CardContent className="p-6 text-muted-foreground">
-            <p>
-              Click "Start Simulation" to initialize and view the dashboard.
-            </p>
-          </CardContent>
-        </Card>
-      )}
+        )}
+      </div>
     </div>
   );
 }
