@@ -1,0 +1,32 @@
+{
+  "station": {
+    "id": "EDGE",
+    "name": "Edge Station",
+    "platforms": [
+      { "id": "P1", "len_m": 500 },
+      { "id": "P2", "len_m": 500 },
+      { "id": "P3", "len_m": 500 },
+      { "id": "P4", "len_m": 500 }
+    ]
+  },
+  "blocks": [
+    { "id": "B_UP1", "dir": "UP", "headway_s": 90, "line_speed_kmph": 100 },
+    { "id": "B_UP2", "dir": "UP", "headway_s": 90, "line_speed_kmph": 100 },
+    { "id": "B_DN1", "dir": "DN", "headway_s": 90, "line_speed_kmph": 100 },
+    { "id": "B_DN2", "dir": "DN", "headway_s": 90, "line_speed_kmph": 100 }
+  ],
+  "junctions": [
+    {
+      "id": "J_EDGE",
+      "conflicts": [
+        ["B_UP1", "B_DN1"],
+        ["B_UP2", "B_DN2"]
+      ]
+    }
+  ],
+  "routes": [
+    { "id": "UP_ROUTE", "blocks": ["B_UP1", "B_UP2"], "overlap_s": 30 },
+    { "id": "DN_ROUTE", "blocks": ["B_DN1", "B_DN2"], "overlap_s": 30 }
+  ],
+  "tsr_psr": []
+}
